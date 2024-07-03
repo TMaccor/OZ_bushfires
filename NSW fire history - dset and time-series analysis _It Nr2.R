@@ -235,6 +235,8 @@ if (normality_p1_area$p.value > 0.05 & normality_p2_area$p.value > 0.05) {
 }
 
 
+
+
 # Results
 list(
   desc_p1_fires = desc_p1_fires,
