@@ -1,0 +1,93 @@
+---
+title: "Australian Bushfires"
+author: "Tom Maccor"
+format: html
+editor: visual
+knitr: 
+  opts_chunk:
+    message: false
+    warning: false
+---
+
+# Statistical analysis, modelling and initial forecasting
+
+This paper will aim at answering the question:
+
+Is there a statistically significant increase in the incidence (nr. fires/year) and size of fires in New South Wales Australia, since bushfire data started being recorded?
+
+## [1.- Data Collection]{.underline}
+
+An internet search for data sources was performed. The datasets that showed most promise were the ones kept by the [NSW Department of Climate Change, Energy, the Environment and Water](https://datasets.seed.nsw.gov.au/dataset/fire-history-wildfires-and-prescribed-burns-1e8b6) (click for the URL).
+
+The datasets are in Shapefile format (.shp), which is a simple, nontopological format for storing the geometric location and attribute information of geographic features. Geographic features in a shapefile can be represented by points, lines, or polygons (areas), which is our case for the size of area burnt each year.
+
+Now, the dataset obtained had to be converted into a format that can be read by the **R** programming language.
+
+This was done via [QGIS](https://qgis.org/en/site/index.html), an open source Geospatial software.
+
+Once a **.csv** file was obtained, it was read into R:
+
+```{r}
+#| echo: false
+
+libraries <- c('tidyverse', 'lubridate', 'readxl', 'MARSS', "forecast", 'stats', 'gridExtra', 'feasts', 'stats', 'fable', 'plotly', 'tseries', 'urca', 'reshape2')
+
+lapply(libraries, require , character.only = TRUE)
+
+```
+
+```{r}
+NSW_fire_history <- read_csv("NSW_fire_history_2024.csv")
+
+glimpse(NSW_fire_history)
+```
+
+We can see that there is data on bushfires for the period 1899-2024:
+
+```{r}
+datetest <- NSW_fire_history$StartDate %>% na.omit ()
+range(datetest)
+```
+
+but..... there are a lot of missing records:
+
+```{r}
+sum(is.na(NSW_fire_history$StartDate))
+```
+
+15,850 missing Start Dates out of a total of 35.776 records. That is too much.
+
+A histogram shows that, not surpringingly, there is more are more data recorded in recent years versus the 1st half of the 20th century:
+
+```{r}
+#| echo: false
+
+histo <- ggplot(NSW_fire_history, mapping = aes(StartDate)) + geom_histogram()
+histo
+```
+
+Which are the statistical tests that can be used to determine if there is statistically significant increase in the data trend?
+
+## 
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+
+## Analize data from 1953 onwards  ---> too little data prior to this year
+## 2. So will filter by "Label" variable
+## First filter rows for "wildfire"  (removing prescribed burns)
+## then by year   
+
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+ou to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
