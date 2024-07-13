@@ -75,8 +75,7 @@ BasicSummary <- function(df, dgts = 3){
 setwd("D:/Rfiles_D_Drive/Datasets to try/Oz bushfires/firenpwsfirehistory")
 D:\R files - D Drive\Datasets to try\Oz bushfires\firenpwsfirehistory
 
-NSW_fire_history <- read_excel("NSW_fire_history_Excel_Output3.xlsx", 
-                                col_types = c("text", "text", "text",  "date", "date", "numeric", "numeric", "date"))
+NSW_fire_history <- read_csv("NSW_fire_history_2024.csv")
 
 
 

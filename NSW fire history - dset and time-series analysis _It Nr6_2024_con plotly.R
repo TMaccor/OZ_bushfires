@@ -1,22 +1,23 @@
 
-libraries <- list('tidyverse', 'readxl', 'MARSS')
 
-lapply(libraries, library())
+libraries <- c('tidyverse', 'lubridate', 'readxl', 'MARSS', "forecast", 'stats', 'gridExtra', 'feasts', 'stats', 'fable', 'plotly', 'tseries', 'urca', 'reshape2', 'formatR')
 
-library(tidyverse)
-library(readxl)
-library(lubridate)
-library(MARSS)
-library(forecast)
-library(stats)
+invisible(lapply(libraries, require , character.only = TRUE))
 
-library(gridExtra)
-library(reshape2)
-library(tseries)
-library(urca)
-library(fable)
-library(feasts)
-library(plotly)
+
+#library(tidyverse)
+#library(readxl)
+#library(lubridate)
+#library(MARSS)
+#library(forecast)
+#library(stats)
+#library(gridExtra)
+#library(reshape2)
+#library(tseries)
+#library(urca)
+#library(fable)
+#library(feasts)
+#library(plotly)
 
 
 BasicSummary <- function(df, dgts = 3){
@@ -75,8 +76,8 @@ BasicSummary <- function(df, dgts = 3){
 setwd("D:/Rfiles_D_Drive/Datasets to try/Oz bushfires/firenpwsfirehistory")
 D:\R files - D Drive\Datasets to try\Oz bushfires\firenpwsfirehistory
 
-NSW_fire_history_orig <- read_excel("NSW_fire_history_Excel_Output3.xlsx", 
-                                col_types = c("text", "text", "text",  "date", "date", "numeric", "numeric", "date"))
+###  NSW_fire_history_orig <- read_excel("NSW_fire_history_Excel_Output3.xlsx", 
+###                   col_types = c("text", "text", "text",  "date", "date", "numeric", "numeric", "date"))
 
 
 NSW_fire_history <- read_csv("NSW_fire_history_2024.csv")
@@ -124,7 +125,8 @@ Total_Area_burned_year_ts <- as_tsibble(Total_Area_burned_year, index = year, ke
 
 Nr_fires_year_ts <- as_tsibble(Nr_fires_year, index = year, key = n)
 
-graphNr1 <- ggplot(Total_Area_burned_year, aes(x=year, y=TotalAreaHa)) + geom_line()
+Total_Area_burned_year <- Total_Area_burned_year %>% mutate(Total_Area_million_Ha = TotalAreaHa/1000000)
+graphNr1 <- ggplot(Total_Area_burned_year, aes(x=year, y=Total_Area_million_Ha)) + geom_line(color='red')
 
 graphNr1
 
@@ -160,7 +162,7 @@ library(forecast)
 #### Using Nr. of fires/year data
 Nr_fires_year_ts <- ts(Nr_fires_year$n, start = min(Nr_fires_year$year), frequency = 1)
 
-# ADT Test
+# ADF Test
 adf_test <- adf.test(Nr_fires_year_ts)
 adf_test
 ### p > 0.05 , hence the Data is non-stationary (there is a trend)    :)     #####
@@ -185,8 +187,8 @@ ggplot(Nr_fires_year, aes(x = year, y = n)) +
 
 
 
-# STL Decomposition
-decomp <- stl(fires_ts, s.window = "periodic")
+# STL Decomposition 
+decomp <- stl(Nr_fires_year_ts, t.window = 1, deltat(1))
 plot(decomp)
 
 
