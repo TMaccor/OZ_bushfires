@@ -103,7 +103,7 @@ NSW_fire_history2 <- NSW_fire_history %>% filter(grepl('[Wd]ild', Label))
 
 NSW_fire_history2 <- NSW_fire_history2 %>% 
                      mutate(derived_year = (as.numeric(sub(".*(\\d{4}).*", "\\1", NSW_fire_history2$Label)) +1) )  %>%
-                     filter (derived_year > 1952) 
+                     filter (derived_year > 1944) 
 
 
 Total_Area_burned_year <- NSW_fire_history2%>%
@@ -160,7 +160,7 @@ library(forecast)
 
 
 #### Using Nr. of fires/year data
-Nr_fires_year_ts <- ts(Nr_fires_year$n, start = min(Nr_fires_year$year), frequency = 1)
+Nr_fires_year_ts <- ts(Nr_fires_year$n, start = min(Nr_fires_year$derived_year), frequency = 1)
 
 # ADF Test
 adf_test <- adf.test(Nr_fires_year_ts)
@@ -169,17 +169,17 @@ adf_test
 
 
 # Mann-Kendall Trend Test
-mk_test <- Kendall(Nr_fires_year$year, Nr_fires_year$n)
+mk_test <- Kendall(Nr_fires_year$derived_year, Nr_fires_year$n)
 ### tau = 0.465, 2-sided pvalue =< 2.22e-16
 ### p < 0.05  -> meaning we reject the null, so there is sufficient evidence to say there is a trend.
 
 
 # Linear Regression Analysis
-lm_model <- lm(n ~ year, data = Nr_fires_year)
+lm_model <- lm(n ~ derived_year, data = Nr_fires_year)
 summary(lm_model)
 
 # Plot the trend
-ggplot(Nr_fires_year, aes(x = year, y = n)) +
+ggplot(Nr_fires_year, aes(x = derived_year, y = n)) +
   geom_line() +
   geom_smooth(method = "lm", se = FALSE, color = "red") +
   labs(title = "Number of Fires per Year with Linear Trend", x = "Year", y = "Number of Fires")
@@ -203,7 +203,7 @@ library(zoo)
 
 
 # Filter data for the two periods
-period1 <- NSW_fire_history2 %>% filter(derived_year >= 1953 & derived_year <= 1957)
+period1 <- NSW_fire_history2 %>% filter(derived_year >= 1945 & derived_year <= 1957)
 period2 <- NSW_fire_history2 %>% filter(derived_year > 1980 & derived_year <= 2023)
 
 # Calculate number of fires and total area affected per year for both periods
@@ -317,7 +317,7 @@ list(
 
 
 Nr_fires_year_disag <- Nr_fires_year %>% ungroup()
-Nr_fires_year_ts <- as_tsibble(Nr_fires_year_disag, index = year)
+Nr_fires_year_ts <- as_tsibble(Nr_fires_year_disag, index = derived_year)
 
 fit <- Nr_fires_year_ts %>%
         model(auto = ARIMA(n, stepwise = FALSE, approx = FALSE)   )
@@ -332,9 +332,47 @@ fit |>
 
 
 fit |>
-   forecast(h=5) |>
+  forecast(h=5) |>
+  mutate(n = distributional::dist_truncated(n, 0))  %>%
   filter(.model=='auto') |>
-  autoplot(Nr_fires_year_ts)
+  autoplot(Nr_fires_year_ts) + labs(title="Number of fires per year - NSW", x="Year")
+
+
+fitplot <- fit |>
+  forecast(h=5) |>
+  mutate(n = distributional::dist_truncated(n, 0))  %>%
+  filter(.model=='auto') |>
+  autoplot(Nr_fires_year_ts) + labs(title="Number of fires per year - NSW", x="Year")
+
+
+ggplotly(fitplot)
+
+
+#### Forecasting AREA BURNT  --- doesn't really work -  the forecast is crap
+
+Total_Area_burned_year_disag <- Total_Area_burned_year %>% ungroup()
+Total_Area_burned_year_ts <- as_tsibble(Total_Area_burned_year_disag, index = derived_year)
+
+area_fit <- Total_Area_burned_year_ts %>%
+  model(auto = ARIMA(Total_Area_million_Ha, stepwise = FALSE, approx = FALSE)   )
+
+area_fit |> pivot_longer(everything(), names_to = "Model name",
+                    values_to = "Orders")
+
+
+area_fit |>
+  select(auto) |>
+  gg_tsresiduals()
+
+
+area_fit |>
+  forecast(h=5) |>
+  mutate(Total_Area_million_Ha = distributional::dist_truncated(Total_Area_million_Ha, 0))  %>%
+  filter(.model=='auto') |>
+  autoplot(Total_Area_burned_year_ts) + labs(title="Area burnt per year - NSW", x="Year")
+
+
+
 
 
 #### the ARIMA Modelling alone is shit   ####

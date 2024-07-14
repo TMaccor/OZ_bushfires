@@ -24,7 +24,7 @@ The datasets are in Shapefile format (.shp), which is a simple, nontopological f
 
 Now, the dataset obtained had to be converted into a format that can be read by the **R** programming language.
 
-This was done via [QGIS](https://qgis.org/en/site/index.html), an open source Geospatial software.
+This was done via **QGIS**, an open source Geospatial software [(click to go to the QGIS website)](https://qgis.org/en/site/index.html)
 
 Once a **.csv** file was obtained, it was read into R:
 
@@ -74,27 +74,29 @@ And so:
 
 -   in order to use as much data as possible, we are going to obtain the fire dates from the 'LABEL' variable. This will also allow us to remove all of the 'prescribed' burns, since those are not to be taken into account to answer our question.
 
--   it makes sense only to use data from 1953 onward -since pretty much there is no data available prior to this year
+-   it makes sense only to use data from 1945 onwards -since pretty much there is no data available prior to this year
+
+-   BUT....by using the fire dates from the 'LABEL' variable, **we won't be able to factor in the yearly seasonality of the bushfire data** -as this variable only specifies the YEAR of the fire. Then again, if we had wanted to use the original Start Date data, we wouldn't have been able to factor in yearly seasonality anyway (precisely due to missing data in this variable).
 
     ```{r}
     NSW_fire_history2 <- NSW_fire_history %>% filter(grepl('[Wd]ild', Label)) 
 
     NSW_fire_history2 <- NSW_fire_history2 %>% 
-                         mutate(year = (as.numeric(sub(".*(\\d{4}).*", "\\1", NSW_fire_history2$Label)) +1) )  %>%
-                         filter (year > 1952) 
+                         mutate(derived_year = (as.numeric(sub(".*(\\d{4}).*", "\\1", NSW_fire_history2$Label)) +1) )  %>%
+                         filter (derived_year > 1944) 
     ```
 
 We then proceed to (#1) summarise the total area burnt each year and (#2) count the \# of wildfires that ocurred on each year:
 
 ```{r}
 Total_Area_burned_year <- NSW_fire_history2%>%
-                     group_by(year) %>%
+                     group_by(derived_year) %>%
                      summarize(TotalAreaHa = sum(AreaHa, na.rm = TRUE))
 
 
 Nr_fires_year <- NSW_fire_history2%>%
-                 group_by(year) %>%
-                 count(year)
+                 group_by(derived_year) %>%
+                 count(derived_year)
 ```
 
 We plot those 2 new variables that we have created (**'Total_Area_burned_year' and 'Nr_fires_year"**) to learn about them:
@@ -103,17 +105,17 @@ We plot those 2 new variables that we have created (**'Total_Area_burned_year' a
 #| echo: false
 
 Total_Area_burned_year <- as.data.frame(Total_Area_burned_year)
-Total_Area_burned_year$year <- as.integer(Total_Area_burned_year$year)
+Total_Area_burned_year$derived_year <- as.integer(Total_Area_burned_year$derived_year)
 Total_Area_burned_year$TotalAreaHa <- as.integer(Total_Area_burned_year$TotalAreaHa)
 
 
 Total_Area_burned_year <- Total_Area_burned_year %>% mutate(Total_Area_million_Ha = TotalAreaHa/1000000)
 
-graphNr1 <- ggplot(Total_Area_burned_year, aes(x=year, y=Total_Area_million_Ha)) + geom_line(color='red') + ggtitle('Total Area burnt per year - NSW - Million Hectares')
+graphNr1 <- ggplot(Total_Area_burned_year, aes(x=derived_year, y=Total_Area_million_Ha)) + geom_line(color='red') + ggtitle('Total Area burnt per year - NSW - Million Hectares')
 
 ggplotly(graphNr1)
 
-graphNr2 <- ggplot(Nr_fires_year, aes(x=year, y=n)) + geom_line(color='dark red') + ggtitle('Number of fires per year - NSW')
+graphNr2 <- ggplot(Nr_fires_year, aes(x=derived_year, y=n)) + geom_line(color='dark red') + ggtitle('Number of fires per year - NSW')
 
 ggplotly(graphNr2)
 ```
@@ -134,7 +136,7 @@ We will calculate this on the '***Nr. of fires***' timeseries.
 
 ```{r}
 
-Nr_fires_year_ts <- ts(Nr_fires_year$n, start = min(Nr_fires_year$year), frequency = 1)
+Nr_fires_year_ts <- ts(Nr_fires_year$n, start = min(Nr_fires_year$derived_year), frequency = 1)
 
 # ADF Test
 adf_test <- adf.test(Nr_fires_year_ts)
@@ -153,7 +155,7 @@ p \> 0.05 , hence the 'Nr. of fires' timeseries data is non-stationary (there is
 
 ```{r}
 # Mann-Kendall Trend Test
-mk_test <- Kendall(Nr_fires_year$year, Nr_fires_year$n)
+mk_test <- Kendall(Nr_fires_year$derived_year, Nr_fires_year$n)
 mk_test
 
 
@@ -164,11 +166,11 @@ p \< 0.05 -meaning we reject the null, so there is sufficient evidence to say th
 If we attempt linear regression, we obtain a statistically significant equation as well:
 
 ```{r}
-lm_model <- lm(n ~ year, data = Nr_fires_year)
+lm_model <- lm(n ~ derived_year, data = Nr_fires_year)
 summary(lm_model)
 
 # Plot the trend
-ggplot(Nr_fires_year, aes(x = year, y = n)) +
+ggplot(Nr_fires_year, aes(x = derived_year, y = n)) +
   geom_line() +
   geom_smooth(method = "lm", se = FALSE, color = "red") +
   labs(title = "Number of Fires per Year with Linear Trend", x = "Year", y = "Number of Fires")
@@ -177,7 +179,7 @@ ggplot(Nr_fires_year, aes(x = year, y = n)) +
 
 We have to acknowledge though, that this is a very simple linear model, and that it only explains roughly a quarter of the data. But still, we have yet another method that is telling us that there is statistical significance in the trend.
 
-### Q#2: determine if the number and size of fires in the period 1950-1957 are statistically significantly different from the period 1980-2023?
+### Q#2: determine if the number and size of fires in the period 1945-1957 are statistically significantly different from the period 1980-2023?
 
 To answer this question, the following approach is used:
 
@@ -191,18 +193,19 @@ Check if the data for each period follows a normal distribution using the Shapir
 
 Variance Test: Compare the variances of the two periods using Levene's Test or F-test to check for homogeneity of variances.
 
-Statistical Tests for Mean Comparison: If the data is normally distributed and variances are equal, use the Student's t-test (independent t-test) to compare the means. If the data is normally distributed but variances are not equal, use Welch's t-test. If the data is not normally distributed, use the Mann-Whitney U test (a non-parametric test).
+Statistical Tests for Mean Comparison: If the data is normally distributed and variances are equal, use the Student's t-test (independent t-test) to compare the means. If the data is normally distributed but variances are not equal, use Welch's t-test. If the data is not normally distributed, use the Wilcoxon Rank Sum test (a non-parametric test).
 
 ```{r}
 #| code-fold: true
 
 # Filter data for the two periods
-period1 <- NSW_fire_history2 %>% filter(year >= 1953 & year <= 1957)
-period2 <- NSW_fire_history2 %>% filter(year > 1980 & year <= 2023)
+period1 <- NSW_fire_history2 %>% filter(derived_year >= 1945 & derived_year <= 1957)
+period2 <- NSW_fire_history2 %>% filter(derived_year > 1980 & derived_year <= 2023)
 
 # Calculate number of fires and total area affected per year for both periods
-fires_per_year_p1 <- period1 %>% group_by(year = year(StartDate)) %>% summarize(count = n(), total_area = sum(AreaHa, na.rm = TRUE))
- fires_per_year_p2 <- period2 %>% group_by(year = year(StartDate)) %>% summarize(count = n(), total_area = sum(AreaHa, na.rm = TRUE))
+fires_per_year_p1 <- period1 %>% group_by(derived_year) %>% summarize(count = n(), total_area = sum(AreaHa, na.rm = TRUE))
+fires_per_year_p2 <- period2 %>% group_by(derived_year) %>% summarize(count = n(), total_area = sum(AreaHa, na.rm = TRUE))
+
 
 # Descriptive statistics
 desc_p1_fires <- summary(fires_per_year_p1$count)
@@ -210,7 +213,9 @@ desc_p2_fires <- summary(fires_per_year_p2$count)
 desc_p1_area <- summary(fires_per_year_p1$total_area)
 desc_p2_area <- summary(fires_per_year_p2$total_area)
 
+print("Period 1: 1945 to 1957")
 desc_p1_fires
+print("Period 2: 1980 to 2023")
 desc_p2_fires
 ```
 
@@ -226,4 +231,114 @@ normality_p1_fires <- shapiro.test(fires_per_year_p1$count)
 normality_p2_fires <- shapiro.test(fires_per_year_p2$count)
 normality_p1_area <- shapiro.test(fires_per_year_p1$total_area)
 normality_p2_area <- shapiro.test(fires_per_year_p2$total_area)
+
+
+normality_p1_area
+normality_p1_fires
+print("Period 1")
+
+normality_p2_area
+normality_p2_fires
+print("Period 2")
 ```
+
+All 4 Shapiro-Wilk normality tests have a p value \<0.05 hence, **the data in these 2 periods is not normally distributed.**
+
+Therefore, we run a Wilcoxon rank sum test on the data from the 2 periods:
+
+```{r}
+
+stest_Nr_fires <- wilcox.test(fires_per_year_p1$count, fires_per_year_p2$count)
+
+stest_area <- wilcox.test(fires_per_year_p1$total_area, fires_per_year_p2$total_area)
+
+
+stest_Nr_fires
+stest_area
+```
+
+In the Wilcoxon rank sum test, p-values are not strictly defined as a measure of the effect size. If the p-value is lower the significance level (usually 0.05) then we can say that we have statistically significant evidences to reject the null hypothesis -and **thus to accept that the data are from different populations** (and so, there is a statistically significant difference between the 1945-1957 data and the 1980-2023 data!).
+
+## [FORECASTING]{.underline}
+
+There are numerous methods used for forecasting. And lately, the advent of machine learning techniques has widened the forecasting tools and possibilities exponentially. A bibliographic research was performed, and after consideration, the ARIMA/SARIMA method was chosen. Machine learning methods were discarded in this instance, as ARIMA/SARIMA has recently been found to perform better in environmental data (**CITAA!!)**
+
+The basis for forecasting via ARIMA/SARIMA using R was taken from the excellent book "Forecasting: principles and practice" 3rd edition, by Rob Hyndman and George Athanosopoulos [(click for the URL)](https://otexts.com/fpp3/)
+
+[*ARIMA/SARIMA models*]{.underline}
+
+An autoregressive integrated moving average (**ARIMA**) model is a form of regression analysis that gauges the strength of one dependent variable relative to other changing variables. The model's goal is to predict future values by examining the differences between values in the series instead of through actual values.
+
+An ARIMA model can be understood by outlining each of its components as follows:
+
+-   **Autoregression** (AR): refers to a model that shows a changing variable that regresses on its own lagged, or prior, values. In other words, it predicts future values based on past values.
+
+-   **Integrated (I)***:* represents the differencing of raw observations to allow the time series to become stationary (i.e., data values are replaced by the difference between the data values and the previous values).
+
+-   **Moving average (MA)**: incorporates the dependency between an observation and a residual error from a moving average model applied to lagged observations.
+
+Since we've had to dispense seasonal variation data in our 2 timeseries (remember we could not use the 'Start Date' variable information due to the high number of missing datapoints, hence we could only use aggregated yearly data), the method we will use is ARIMA.
+
+For this, we use the 'fabletools' and 'feasts' R packages, created by XXXXXXXXXXXXXXXXXXXXXXXXXX
+
+And in this case, we will let R choose the best ARIMA model, using the most stringent STEPWISE feature (which instructs R to iterate between various different ARIMA models, until the best fit is found).
+
+```{r}
+#| code-fold: true
+
+
+Nr_fires_year_disag <- Nr_fires_year %>% ungroup()
+Nr_fires_year_ts <- as_tsibble(Nr_fires_year_disag, index = derived_year)
+
+fit <- Nr_fires_year_ts %>%
+        model(auto = ARIMA(n, stepwise = FALSE, approx = FALSE)   )
+
+fit |> pivot_longer(everything(), names_to = "Model name",
+                    values_to = "Orders")
+
+
+```
+
+The model chosen is ARIMA 3,1,3 (autoregression on the 3rd lag, 1 order of differencing and a moving average window of order 3)
+
+We plot the residuals to check if they are random:
+
+```{r}
+#| code-fold: true
+fit |>
+  select(auto) |>
+  gg_tsresiduals()
+```
+
+They are, so we can then proceed to forecast 5 years ahead:
+
+```{r}
+
+fit |>
+  forecast(h=5) |>
+  mutate(n = distributional::dist_truncated(n, 0))  %>%
+  filter(.model=='auto') |>
+  autoplot(Nr_fires_year_ts) + labs(title="Number of fires per year - NSW", x="Year")
+
+
+```
+
+The forecast obtained is decent (for lack of another descriptor). The confidence intervals are far wider than we would like them to be, but as a first attempt the forecast is acceptable.
+
+The interactive plot below will let you hoover over the actual precise predicted values (though the R command for it currently does not allow the confidence intervals to be displayed).
+
+```{r}
+#| code-fold: true
+
+fitplot <- fit |>
+  forecast(h=5) |>
+  mutate(n = distributional::dist_truncated(n, 0))  %>%
+  filter(.model=='auto') |>
+  autoplot(Nr_fires_year_ts) + labs(title="Number of fires per year - NSW", x="Year")
+
+
+ggplotly(fitplot)
+
+```
+
+And so, here ends the forecasting,
