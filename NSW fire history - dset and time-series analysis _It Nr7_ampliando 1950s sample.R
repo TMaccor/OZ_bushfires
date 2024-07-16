@@ -331,18 +331,19 @@ fit |>
   gg_tsresiduals()
 
 
-fit |>
-  forecast(h=5) |>
-  mutate(n = distributional::dist_truncated(n, 0))  %>%
-  filter(.model=='auto') |>
-  autoplot(Nr_fires_year_ts) + labs(title="Number of fires per year - NSW", x="Year")
-
-
 fitplot <- fit |>
   forecast(h=5) |>
   mutate(n = distributional::dist_truncated(n, 0))  %>%
   filter(.model=='auto') |>
-  autoplot(Nr_fires_year_ts) + labs(title="Number of fires per year - NSW", x="Year")
+  autoplot(Nr_fires_year_ts) + labs(title="Number of fires per year - NSW", x="Year") 
+  
+
+fitplot <- fitplot + theme(
+    panel.background = element_rect(fill = "navajowhite2",
+                                    colour = "darkorange",
+                                    size = 0.5, linetype = "solid"),
+      )
+
 
 
 ggplotly(fitplot)
@@ -369,7 +370,7 @@ area_fit |>
   forecast(h=5) |>
   mutate(Total_Area_million_Ha = distributional::dist_truncated(Total_Area_million_Ha, 0))  %>%
   filter(.model=='auto') |>
-  autoplot(Total_Area_burned_year_ts) + labs(title="Area burnt per year - NSW", x="Year")
+  autoplot(Total_Area_burned_year_ts) + labs(title="Area burnt per year - NSW", x="Year") + theme_economist()
 
 
 
